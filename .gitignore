@@ -1,0 +1,2 @@
+# Ignore all TPM-managed plugins except TPM itself
+plugins/
