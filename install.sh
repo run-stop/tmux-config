@@ -84,7 +84,11 @@ bootstrap_tpm() {
 # -----------------------------------------------------------------------------
 install_plugins() {
   echo "Installing tmux plugins via TPM..."
-  # TPM's batch install script
+  local plugin_path="${TMUX_CONFIG_DIR}/plugins/"
+  # TPM reads TMUX_PLUGIN_MANAGER_PATH via 'tmux show-environment -g', not the shell
+  # environment, so we must register it in tmux's global environment store.
+  tmux start-server
+  tmux set-environment -g TMUX_PLUGIN_MANAGER_PATH "$plugin_path"
   "${TPM_DIR}/bin/install_plugins"
 }
 
