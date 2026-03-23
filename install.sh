@@ -57,13 +57,16 @@ deploy_config() {
   local src="${SCRIPT_DIR}/tmux.conf"
   local dst="${TMUX_CONFIG_DIR}/tmux.conf"
 
-  if [[ -f "$dst" && ! -L "$dst" ]]; then
+  if [[ -L "$dst" ]]; then
+    rm "$dst"
+  elif [[ -f "$dst" ]]; then
     echo "Backing up existing tmux.conf -> tmux.conf.bak"
     cp "$dst" "${dst}.bak"
+    rm "$dst"
   fi
 
-  ln -sf "$src" "$dst"
-  echo "Symlinked: $dst -> $src"
+  cp "$src" "$dst"
+  echo "Copied: $src -> $dst"
 }
 
 # -----------------------------------------------------------------------------
