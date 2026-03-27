@@ -3,6 +3,7 @@ set -euo pipefail
 
 TMUX_CONFIG_DIR="${HOME}/.config/tmux"
 TPM_DIR="${TMUX_CONFIG_DIR}/plugins/tpm"
+ALACRITTY_CONFIG_DIR="${HOME}/.config/alacritty"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CONFIG_ONLY=false
@@ -70,6 +71,67 @@ deploy_config() {
 }
 
 # -----------------------------------------------------------------------------
+# Install alacritty
+# -----------------------------------------------------------------------------
+install_alacritty() {
+  if command -v alacritty &>/dev/null; then
+    echo "alacritty already installed: $(alacritty --version)"
+    return
+  fi
+
+  echo "Installing alacritty..."
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    if ! command -v brew &>/dev/null; then
+      echo "ERROR: Homebrew not found. Install it from https://brew.sh first." >&2
+      exit 1
+    fi
+    brew install --cask alacritty
+
+  elif [[ -f /etc/os-release ]]; then
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    case "${ID_LIKE:-$ID}" in
+      *arch*)   sudo pacman -S --noconfirm alacritty ;;
+      *debian*|*ubuntu*) sudo apt-get install -y alacritty ;;
+      *fedora*|*rhel*|*centos*)
+        if command -v dnf &>/dev/null; then sudo dnf install -y alacritty
+        else sudo yum install -y alacritty; fi ;;
+      *) echo "WARNING: Unsupported distro '${ID}'. Install alacritty manually." >&2 ;;
+    esac
+  else
+    echo "WARNING: Cannot detect OS. Install alacritty manually." >&2
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Deploy alacritty config
+# -----------------------------------------------------------------------------
+deploy_alacritty_config() {
+  echo "Deploying alacritty config to ${ALACRITTY_CONFIG_DIR}..."
+  mkdir -p "${ALACRITTY_CONFIG_DIR}"
+
+  local src_dir="${SCRIPT_DIR}/alacritty"
+
+  for src in "${src_dir}"/*.toml; do
+    local filename
+    filename="$(basename "$src")"
+    local dst="${ALACRITTY_CONFIG_DIR}/${filename}"
+
+    if [[ -L "$dst" ]]; then
+      rm "$dst"
+    elif [[ -f "$dst" ]]; then
+      echo "Backing up existing ${filename} -> ${filename}.bak"
+      cp "$dst" "${dst}.bak"
+      rm "$dst"
+    fi
+
+    cp "$src" "$dst"
+    echo "Copied: $src -> $dst"
+  done
+}
+
+# -----------------------------------------------------------------------------
 # Bootstrap TPM
 # -----------------------------------------------------------------------------
 bootstrap_tpm() {
@@ -109,5 +171,17 @@ bootstrap_tpm
 install_plugins
 
 echo ""
+echo "==> alacritty setup"
+
+if [[ "$CONFIG_ONLY" == false ]]; then
+  install_alacritty
+fi
+
+deploy_alacritty_config
+
+echo ""
 echo "Done! Start a new tmux session or reload config inside tmux with:"
 echo "  prefix + r   (if already in tmux)"
+echo ""
+echo "Note: alacritty requires the 'ComicShannsMono Nerd Font' to be installed."
+echo "      Get it from: https://www.nerdfonts.com/font-downloads"
